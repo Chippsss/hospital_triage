@@ -1,0 +1,2 @@
+[console_scripts]
+server = hospital_triage.server.app:main

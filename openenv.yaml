@@ -1,0 +1,44 @@
+name: hospital_triage
+version: 1.0.0
+description: |
+  Hospital triage and resource allocation environment for training AI agents.
+  The agent must efficiently assign doctors to patients, prioritizing critical cases
+  while maximizing treatment throughput.
+
+action_space:
+  type: HospitalTriageAction
+  description: |
+    Two action types:
+    - assign_doctor(patient_id, doctor_id): Assign a doctor to treat a patient
+    - wait(): Do nothing, advance time
+
+observation_space:
+  type: HospitalTriageObservation
+  description: |
+    Complete hospital state including:
+    - Lists of waiting, critical, and treated patients
+    - Available doctors
+    - Progress metrics (step_ratio, treated_ratio)
+
+tasks:
+  - id: easy_triage
+    name: Basic Triage
+    difficulty: easy
+    description: Small hospital (2-3 doctors, 5-7 patients, 30% critical)
+    expected_score: 0.9
+    
+  - id: medium_triage
+    name: Medium Hospital Management
+    difficulty: medium
+    description: Standard hospital (3-4 doctors, 8-12 patients, 40% critical)
+    expected_score: 0.7
+    
+  - id: hard_triage
+    name: Emergency Overload
+    difficulty: hard
+    description: Crisis scenario (4-5 doctors, 15-20 patients, 60% critical)
+    expected_score: 0.5
+
+max_steps: 30
+episode_timeout: 60
+reward_range: [-10.0, 25.0]
