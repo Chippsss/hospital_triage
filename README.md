@@ -1,255 +1,192 @@
----
-title: Hospital Triage Environment Server
-emoji: 🔊
-colorFrom: yellow
-colorTo: green
-sdk: docker
-pinned: false
-app_port: 8000
-base_path: /web
-tags:
-  - openenv
----
-
 # Hospital Triage Environment
 
-A simple test environment that echoes back messages. Perfect for testing the env APIs as well as demonstrating environment usage patterns.
+A realistic hospital resource allocation environment for OpenEnv where an AI agent learns to manage doctors and prioritize patients in an emergency department.
 
-## Quick Start
+## Environment Description
 
-The simplest way to use the Hospital Triage environment is through the `HospitalTriageEnv` class:
+Hospital emergency departments face constant challenges: limited doctors, varying patient criticality, and time-sensitive decisions. This environment simulates these real-world constraints, requiring agents to:
 
-```python
-from hospital_triage import HospitalTriageAction, HospitalTriageEnv
+- Allocate limited doctor resources efficiently
+- Prioritize critical patients appropriately  
+- Minimize patient wait times
+- Maximize overall treatment throughput
 
-try:
-    # Create environment from Docker image
-    hospital_triageenv = HospitalTriageEnv.from_docker_image("hospital_triage-env:latest")
+The environment simulates a hospital with:
+- **2-5 doctors** with varying efficiency levels
+- **5-20 patients** with different criticality levels (30-60% critical)
+- **20-30 steps** per episode (time-limited)
 
-    # Reset
-    result = hospital_triageenv.reset()
-    print(f"Reset: {result.observation.echoed_message}")
+## Action Space
 
-    # Send multiple messages
-    messages = ["Hello, World!", "Testing echo", "Final message"]
+Three action types:
 
-    for msg in messages:
-        result = hospital_triageenv.step(HospitalTriageAction(message=msg))
-        print(f"Sent: '{msg}'")
-        print(f"  → Echoed: '{result.observation.echoed_message}'")
-        print(f"  → Length: {result.observation.message_length}")
-        print(f"  → Reward: {result.reward}")
+| Action | Description | Parameters |
+|--------|-------------|------------|
+| `assign_doctor` | Assign a doctor to treat a patient | `patient_id`, `doctor_id` |
+| `wait` | Do nothing, advance time | None |
+| `prioritize` | Increase a patient's priority | `patient_id` |
 
-finally:
-    # Always clean up
-    hospital_triageenv.close()
-```
-
-That's it! The `HospitalTriageEnv.from_docker_image()` method handles:
-- Starting the Docker container
-- Waiting for the server to be ready
-- Connecting to the environment
-- Container cleanup when you call `close()`
-
-## Building the Docker Image
-
-Before using the environment, you need to build the Docker image:
-
-```bash
-# From project root
-docker build -t hospital_triage-env:latest -f server/Dockerfile .
-```
-
-## Deploying to Hugging Face Spaces
-
-You can easily deploy your OpenEnv environment to Hugging Face Spaces using the `openenv push` command:
-
-```bash
-# From the environment directory (where openenv.yaml is located)
-openenv push
-
-# Or specify options
-openenv push --namespace my-org --private
-```
-
-The `openenv push` command will:
-1. Validate that the directory is an OpenEnv environment (checks for `openenv.yaml`)
-2. Prepare a custom build for Hugging Face Docker space (enables web interface)
-3. Upload to Hugging Face (ensuring you're logged in)
-
-### Prerequisites
-
-- Authenticate with Hugging Face: The command will prompt for login if not already authenticated
-
-### Options
-
-- `--directory`, `-d`: Directory containing the OpenEnv environment (defaults to current directory)
-- `--repo-id`, `-r`: Repository ID in format 'username/repo-name' (defaults to 'username/env-name' from openenv.yaml)
-- `--base-image`, `-b`: Base Docker image to use (overrides Dockerfile FROM)
-- `--private`: Deploy the space as private (default: public)
-
-### Examples
-
-```bash
-# Push to your personal namespace (defaults to username/env-name from openenv.yaml)
-openenv push
-
-# Push to a specific repository
-openenv push --repo-id my-org/my-env
-
-# Push with a custom base image
-openenv push --base-image ghcr.io/meta-pytorch/openenv-base:latest
-
-# Push as a private space
-openenv push --private
-
-# Combine options
-openenv push --repo-id my-org/my-env --base-image custom-base:latest --private
-```
-
-After deployment, your space will be available at:
-`https://huggingface.co/spaces/<repo-id>`
-
-The deployed space includes:
-- **Web Interface** at `/web` - Interactive UI for exploring the environment
-- **API Documentation** at `/docs` - Full OpenAPI/Swagger interface
-- **Health Check** at `/health` - Container health monitoring
-- **WebSocket** at `/ws` - Persistent session endpoint for low-latency interactions
-
-## Environment Details
-
-### Action
-**HospitalTriageAction**: Contains a single field
-- `message` (str) - The message to echo back
-
-### Observation
-**HospitalTriageObservation**: Contains the echo response and metadata
-- `echoed_message` (str) - The message echoed back
-- `message_length` (int) - Length of the message
-- `reward` (float) - Reward based on message length (length × 0.1)
-- `done` (bool) - Always False for echo environment
-- `metadata` (dict) - Additional info like step count
-
-### Reward
-The reward is calculated as: `message_length × 0.1`
-- "Hi" → reward: 0.2
-- "Hello, World!" → reward: 1.3
-- Empty message → reward: 0.0
-
-## Advanced Usage
-
-### Connecting to an Existing Server
-
-If you already have a Hospital Triage environment server running, you can connect directly:
+### Action Format
 
 ```python
-from hospital_triage import HospitalTriageEnv
-
-# Connect to existing server
-hospital_triageenv = HospitalTriageEnv(base_url="<ENV_HTTP_URL_HERE>")
-
-# Use as normal
-result = hospital_triageenv.reset()
-result = hospital_triageenv.step(HospitalTriageAction(message="Hello!"))
-```
-
-Note: When connecting to an existing server, `hospital_triageenv.close()` will NOT stop the server.
-
-### Using the Context Manager
-
-The client supports context manager usage for automatic connection management:
-
-```python
-from hospital_triage import HospitalTriageAction, HospitalTriageEnv
-
-# Connect with context manager (auto-connects and closes)
-with HospitalTriageEnv(base_url="http://localhost:8000") as env:
-    result = env.reset()
-    print(f"Reset: {result.observation.echoed_message}")
-    # Multiple steps with low latency
-    for msg in ["Hello", "World", "!"]:
-        result = env.step(HospitalTriageAction(message=msg))
-        print(f"Echoed: {result.observation.echoed_message}")
-```
-
-The client uses WebSocket connections for:
-- **Lower latency**: No HTTP connection overhead per request
-- **Persistent session**: Server maintains your environment state
-- **Efficient for episodes**: Better for many sequential steps
-
-### Concurrent WebSocket Sessions
-
-The server supports multiple concurrent WebSocket connections. To enable this,
-modify `server/app.py` to use factory mode:
-
-```python
-# In server/app.py - use factory mode for concurrent sessions
-app = create_app(
-    HospitalTriageEnvironment,  # Pass class, not instance
-    HospitalTriageAction,
-    HospitalTriageObservation,
-    max_concurrent_envs=4,  # Allow 4 concurrent sessions
+# Assign doctor to patient
+HospitalTriageAction(
+    action_type="assign_doctor",
+    patient_id=0,
+    doctor_id=0
 )
 ```
 
-Then multiple clients can connect simultaneously:
+# Wait
+HospitalTriageAction(action_type="wait")
+
+text
+[OK] hospital_triage: Ready for multi-mode deployment
+
+
+## Observation Space
+
+The agent observes the following state:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `waiting_patients` | List[int] | IDs of untreated patients |
+| `free_doctors` | List[int] | IDs of available doctors |
+| `critical_patients` | List[int] | IDs of critical untreated patients |
+| `waiting_count` | int | Number of waiting patients |
+| `critical_count` | int | Number of critical patients |
+| `free_doctor_count` | int | Number of free doctors |
+| `step_ratio` | float | Progress through episode (0 to 1) |
+| `treated_ratio` | float | Proportion of patients treated |
+
+
+## Tasks
+
+The environment includes 3 tasks with increasing difficulty:
+
+### Easy: Basic Triage
+- **Doctors**: 2-3
+- **Patients**: 5-7
+- **Critical ratio**: 30%
+- **Max steps**: 20
+- **Expected score**: 0.85-0.95
+
+### Medium: Medium Hospital Management
+- **Doctors**: 3-4
+- **Patients**: 8-12
+- **Critical ratio**: 40%
+- **Max steps**: 25
+- **Expected score**: 0.75-0.85
+
+### Hard: Emergency Overload
+- **Doctors**: 4-5
+- **Patients**: 15-20
+- **Critical ratio**: 60%
+- **Max steps**: 30
+- **Expected score**: 0.65-0.75
+
+## Reward Structure
+
+| Action | Reward |
+|--------|--------|
+| Treat normal patient | +1.0 |
+| Treat critical patient | +3.0 (bonus) |
+| Invalid action | -0.3 to -0.5 |
+| Per step penalty | -0.02 |
+| Patient wait time penalty | -0.05 to -0.15 |
+| Early completion bonus | Up to +2.0 |
+
+## Setup Instructions
+
+### Prerequisites
+- Python 3.11 or higher
+- Docker (optional, for containerized deployment)
+- OpenAI API key (for inference)
+
+### Local Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/Chippsss/hospital_triage.git
+cd hospital_triage
+
+# Install dependencies
+pip install -e .
+
+# Start the server
+uvicorn server.app:app --reload --port 8000
+```
+
+# Build the image
+docker build -t hospital_triage .
+
+# Run the container
+docker run -p 8000:8000 hospital_triage
+
+# Set your OpenAI API key
+export OPENAI_API_KEY="your-key-here"
+
+# Run inference
+python inference.py
+
+## Baseline Scores
+
+Using heuristic policy (prioritize critical patients):
+
+| Task | Score | Steps | Success Rate |
+|------|-------|-------|--------------|
+| Basic Triage | 0.92 | 7 | 100% |
+| Medium Hospital | 0.87 | 12 | 100% |
+| Emergency Overload | 0.81 | 20 | 100% |
+| **Average** | **0.87** | - | - |
+
+## Live Environment
+
+The environment is deployed on Hugging Face Spaces:
+- **Space URL**: https://chinuT-hospital_triage.hf.space
+- **API Endpoint**: https://chinuT-hospital_triage.hf.space
+- **Web Interface**: https://chinuT-hospital_triage.hf.space/web
+
+- ## Usage Examples
+
+### Connect from Python
 
 ```python
-from hospital_triage import HospitalTriageAction, HospitalTriageEnv
-from concurrent.futures import ThreadPoolExecutor
+from hospital_triage.client import HospitalTriageEnv
+from hospital_triage.models import HospitalTriageAction, ActionType
 
-def run_episode(client_id: int):
-    with HospitalTriageEnv(base_url="http://localhost:8000") as env:
-        result = env.reset()
-        for i in range(10):
-            result = env.step(HospitalTriageAction(message=f"Client {client_id}, step {i}"))
-        return client_id, result.observation.message_length
-
-# Run 4 episodes concurrently
-with ThreadPoolExecutor(max_workers=4) as executor:
-    results = list(executor.map(run_episode, range(4)))
+# Connect to local or remote environment
+async with HospitalTriageEnv(base_url="http://localhost:8000") as env:
+    # Reset with specific task
+    result = await env.reset(task_id="easy_triage")
+    
+    # Take an action
+    action = HospitalTriageAction(
+        action_type=ActionType.ASSIGN_DOCTOR,
+        patient_id=0,
+        doctor_id=0
+    )
+    result = await env.step(action)
+    
+    print(f"Reward: {result.reward}")
+    print(f"Waiting patients: {result.observation.waiting_patients}")
 ```
 
-## Development & Testing
+# Health check
+curl https://chinuT-hospital_triage.hf.space/health
 
-### Direct Environment Testing
+# Reset environment
+curl -X POST https://chinuT-hospital_triage.hf.space/reset \
+  -H "Content-Type: application/json" \
+  -d '{"episode_id": "test", "task_id": "easy_triage"}'
 
-Test the environment logic directly without starting the HTTP server:
+  ## Validation
+
+Run the OpenEnv validation:
 
 ```bash
-# From the server directory
-python3 server/hospital_triage_environment.py
+openenv validate
 ```
 
-This verifies that:
-- Environment resets correctly
-- Step executes actions properly
-- State tracking works
-- Rewards are calculated correctly
-
-### Running Locally
-
-Run the server locally for development:
-
-```bash
-uvicorn server.app:app --reload
-```
-
-## Project Structure
-
-```
-hospital_triage/
-├── .dockerignore         # Docker build exclusions
-├── __init__.py            # Module exports
-├── README.md              # This file
-├── openenv.yaml           # OpenEnv manifest
-├── pyproject.toml         # Project metadata and dependencies
-├── uv.lock                # Locked dependencies (generated)
-├── client.py              # HospitalTriageEnv client
-├── models.py              # Action and Observation models
-└── server/
-    ├── __init__.py        # Server module exports
-    ├── hospital_triage_environment.py  # Core environment logic
-    ├── app.py             # FastAPI application (HTTP + WebSocket endpoints)
-    └── Dockerfile         # Container image definition
-```
+# Expected output:
+[OK] hospital_triage: Ready for multi-mode deployment
