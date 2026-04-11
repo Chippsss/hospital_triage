@@ -324,39 +324,40 @@ class HospitalTriageEnvironment(Environment):
 
     def _calculate_score(self) -> float:
         """
-        Calculate final score for the episode (0.0 to task max).
-        Natural variance comes from different hospital configurations.
+        Calculate final score for the episode.
+        IMPORTANT: Score must be strictly between 0 and 1 (never 0.0 or 1.0)
         """
         if not self._patients:
-            return 0.85
-        
+            return 0.500  # Return 0.5, not 0.85
+
         treated = sum(1 for p in self._patients if p["treated"])
         total_arrived = len([p for p in self._patients if p["arrival_step"] <= self._max_steps])
-        
-        # Treatment score
-        treatment_score = treated / total_arrived if total_arrived > 0 else 0
-        
-        # Critical patient score
+
+        if total_arrived == 0:
+            return 0.500
+
+        # Calculate scores
+        treatment_score = treated / total_arrived
         critical_score = (
             self._state.critical_treated / self._state.total_critical
             if self._state.total_critical > 0 else 0.9
         )
-        
+
         # Efficiency score
         theoretical_max = total_arrived / 2
         efficiency = (treated / max(self._step_count, 1)) / theoretical_max if theoretical_max > 0 else 0
         efficiency_score = min(efficiency, 0.95)
-        
-        # Resource utilization score
+
+        # Utilization score
         total_treatments = sum(d["treatments"] for d in self._doctors)
         utilization = total_treatments / (self._step_count * len(self._doctors)) if self._step_count > 0 else 0
         utilization_score = min(utilization, 0.9)
-        
-        # Waiting time penalty
+
+        # Wait penalty
         avg_wait_time = sum(p["wait_time"] for p in self._patients if p["treated"]) / max(treated, 1)
         wait_penalty = min(avg_wait_time / 10, 0.2)
-        
-        # Combine scores with weights (NO random factor!)
+
+        # Combine
         score = (
             treatment_score * 0.35 +
             critical_score * 0.30 +
@@ -364,13 +365,33 @@ class HospitalTriageEnvironment(Environment):
             utilization_score * 0.15 -
             wait_penalty
         )
-        
-        # Cap at task-specific maximum (natural variance from different seeds)
+
+        # CRITICAL: Ensure score is NEVER 0.0 or 1.0
+        if score <= 0.0:
+            score = 0.001
+        elif score >= 1.0:
+            score = 0.999
+
+        # Cap at task max
         task_config = self.TASKS[self._current_task]
         max_score = task_config["optimal_score"]
-        
-        return min(max(score, 0.0), max_score)
+
+        final_score = min(score, max_score)
+
+        # Final safety check
+        if final_score <= 0.0:
+            final_score = 0.001
+        if final_score >= 1.0:
+            final_score = 0.999
+
+        return final_score
     
     def get_task_score(self) -> float:
         """Public method to get task score for grading."""
-        return self._calculate_score()
+        score = self._calculate_score()
+        # Ensure strictly between 0 and 1
+        if score <= 0.0:
+            return 0.001
+        if score >= 1.0:
+            return 0.999
+        return score
