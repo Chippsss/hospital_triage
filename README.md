@@ -1,3 +1,14 @@
+---
+title: Hospital Triage Environment
+emoji: 🏥
+colorFrom: blue
+colorTo: green
+sdk: docker
+sdk_version: "1.0"
+app_file: server/app.py
+pinned: false
+---
+
 # Hospital Triage Environment
 
 A realistic hospital resource allocation environment for OpenEnv where an AI agent learns to manage doctors and prioritize patients in an emergency department.
