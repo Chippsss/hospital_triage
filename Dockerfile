@@ -3,10 +3,13 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Install dependencies
-RUN pip install openenv-core fastapi uvicorn pydantic
+RUN pip install --no-cache-dir openenv-core fastapi uvicorn pydantic openai
 
 # Copy your code
 COPY . .
 
-# Run the server
-CMD ["uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "8000"]
+# Expose port 7860 (HF Spaces requirement)
+EXPOSE 7860
+
+# Run on port 7860
+CMD ["uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "7860"]

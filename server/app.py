@@ -6,9 +6,6 @@ FastAPI application for the Hospital Triage Environment.
 """
 
 import os
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-
 try:
     from openenv.core.env_server.http_server import create_app
 except Exception as e:
@@ -24,7 +21,7 @@ except ImportError:
     from server.hospital_triage_environment import HospitalTriageEnvironment
 
 
-# Create the app with web interface
+# Create the app with web interface and README integration
 app = create_app(
     HospitalTriageEnvironment,
     HospitalTriageAction,
@@ -33,22 +30,8 @@ app = create_app(
     max_concurrent_envs=10,
 )
 
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Add a simple health check at root
-@app.get("/")
-async def root():
-    return {"status": "healthy", "message": "Hospital Triage Environment is running"}
-
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    # HF Spaces REQUIRES port 7860
+    uvicorn.run(app, host="0.0.0.0", port=7860)
