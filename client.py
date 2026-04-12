@@ -12,8 +12,10 @@ from openenv.core import EnvClient
 from openenv.core.client_types import StepResult
 from openenv.core.env_server.types import State
 
-from .models import HospitalTriageAction, HospitalTriageObservation, HospitalTriageState
-
+try:
+    from .models import HospitalTriageAction, HospitalTriageObservation, HospitalTriageState
+except ImportError:
+    from models import HospitalTriageAction, HospitalTriageObservation, HospitalTriageState
 
 class HospitalTriageEnv(
     EnvClient[HospitalTriageAction, HospitalTriageObservation, HospitalTriageState]
