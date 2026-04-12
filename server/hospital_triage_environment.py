@@ -59,8 +59,9 @@ class HospitalTriageEnvironment(Environment):
         }
     }
 
-    def __init__(self):
+    def __init__(self, task_id: str = "easy_triage"):
         """Initialize the hospital triage environment."""
+        self._current_task = task_id
         self._state = HospitalTriageState(
             episode_id=str(uuid4()),
             step_count=0,
@@ -69,10 +70,9 @@ class HospitalTriageEnvironment(Environment):
             critical_treated=0,
             total_critical=0,
             efficiency=0.0,
-            current_task="easy_triage",
+            current_task=task_id,
             episode_reward=0.0
         )
-        self._current_task = "easy_triage"
         self._doctors = []
         self._patients = []
         self._step_count = 0
