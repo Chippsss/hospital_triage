@@ -2,14 +2,34 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install dependencies
-RUN pip install --no-cache-dir openenv-core fastapi uvicorn pydantic openai
+# Install system dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl git && \
+    rm -rf /var/lib/apt/lists/*
 
-# Copy your code
-COPY . .
+# Copy everything
+COPY . /app
 
-# Expose port 7860 (HF Spaces requirement)
-EXPOSE 7860
+# Install Python dependencies
+RUN pip install --no-cache-dir \
+    openenv-core \
+    fastapi \
+    "uvicorn[standard]" \
+    pydantic \
+    websockets \
+    openai
 
-# Run on port 7860
-CMD ["uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "7860"]
+# Set PYTHONPATH
+ENV PYTHONPATH="/app:/app/server"
+ENV TASK_NAME=easy_triage
+ENV PORT=8000
+
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Make start script executable
+RUN chmod +x /app/start.sh
+CMD ["/app/start.sh"]

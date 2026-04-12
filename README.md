@@ -4,10 +4,7 @@ emoji: 🏥
 colorFrom: blue
 colorTo: green
 sdk: docker
-sdk_version: "1.0"
-app_file: server/app.py
-pinned: false
-port: 7860
+app_port: 8000
 ---
 
 # Hospital Triage Environment
